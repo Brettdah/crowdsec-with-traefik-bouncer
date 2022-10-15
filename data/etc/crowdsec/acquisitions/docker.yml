@@ -1,0 +1,7 @@
+---
+# Docker context
+source : docker
+container_name_regexp:
+  - ^[a-zA-Z0-9.-]*$
+labels:
+  type: log_type

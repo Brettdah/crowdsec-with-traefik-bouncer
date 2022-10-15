@@ -1,0 +1,5 @@
+---
+filenames:
+  - /var/log/dockerhost/*
+labels:
+  type: ssh_local

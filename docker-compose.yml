@@ -1,0 +1,63 @@
+---
+version: '3.8'
+
+networks:
+  proxy:
+    external: true
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    environment:
+      TZ: Europe/Paris
+      GID: "${GID-1000}"
+      LEVEL_INFO: "true"
+      COLLECTIONS: "crowdsecurity/linux crowdsecurity/traefik LePresidente/authelia Dominic-Wagner/vaultwarden"
+    volumes:
+      # You will need this for crowdsec to read the stdout of your containers (as far as I understood)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Here is a named volume for crowdsec local database
+      - crowdsec-db:/var/lib/crowdsec/data/
+      # Here a named volume for crowdec configuration files 
+      - crowdsec-config:/etc/crowdsec/
+      # Here is my personnal configuration that I want to add to crowdse
+      # If you have an error while the container is starting 
+      # - comment those lines first
+      # - start the container and stop it
+      # - uncomment those lines and start the container again
+      - $PWD/data/etc/crowdsec/acquisitions:/etc/crowdsec/acquisition
+      - $PWD/data/etc/crowdsec/config.yaml:/etc/crowdsec/config.yaml
+      # to check the docker host ssh connections
+      - /etc/var/log/auth.log:/var/log/dockerhost/auth.log
+      # if you have files for your container logs that you want crowdsec to observe
+        #- traefik_traefik-logs:/var/log/traefik/:ro
+        #- authelia_authelia-logs:/var/log/authelia/:ro
+        #- vaultwarden_vaultwarden-logs:/var/log/vaultwarden/:ro
+    networks:
+      - proxy
+    restart: unless-stopped
+
+# At first comment this service you will need to get the API KEY from the cscli
+  bouncer-traefik:
+    image: fbonalair/traefik-crowdsec-bouncer:latest
+    environment:
+      TZ: Europe/Paris
+      CROWDSEC_BOUNCER_API_KEY: <insert API KEY here>
+      CROWDSEC_AGENT_HOST: crowdsec:8080
+      #TRUSTED_PROXIES: 172.19.0.0/16, 192.168.1.0/24
+      #GIN_MODE: debug  # change to release in prod
+    networks:
+      - proxy # same network as traefik + crowdsec
+    restart: unless-stopped
+    depends_on:
+      - crowdsec
+
+volumes:
+  crowdsec-db:
+  crowdsec-config:
+#  traefik_traefik-logs:  # this will be the name of the volume from traefic logs
+#    external: true  # remove if traefik is running on same stack
+#  authelia_authelia-logs:  # this the volume of from authelia logs
+#    external: true
+#  vaultwarden_vaultwarden-logs:
+#    external: true
